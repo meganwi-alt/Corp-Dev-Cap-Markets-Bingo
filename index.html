@@ -299,6 +299,30 @@
     }
     .lb-offline strong { color: rgba(255,255,255,.7); display: block; margin-bottom: 4px; }
 
+    /* ── CLASS CLOWN CLUB ────────────────────────────────── */
+    .cc-club-wrap {
+      margin-top: 12px;
+      background: rgba(194,24,91,.12);
+      border: 1px solid rgba(244,143,177,.25);
+      border-radius: 20px; overflow: hidden;
+    }
+    .cc-club-header {
+      padding: 12px 16px; border-bottom: 1px solid rgba(244,143,177,.15);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;
+    }
+    .cc-club-header span:first-child { font-size: 13px; font-weight: 800; color: #f48fb1; text-transform: uppercase; letter-spacing: .7px; }
+    .cc-club-sub { font-size: 10px; color: rgba(244,143,177,.6); font-weight: 500; }
+    .cc-club-body { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 7px; min-height: 48px; align-items: center; }
+    .cc-club-empty { font-size: 12px; color: rgba(255,255,255,.3); width: 100%; text-align: center; padding: 4px 0; }
+    .cc-chip {
+      background: linear-gradient(135deg, #c2185b, #880e4f);
+      color: #fff; font-size: 12px; font-weight: 700;
+      padding: 5px 12px; border-radius: 20px;
+      border: 1px solid rgba(244,143,177,.3);
+      animation: popin .35s cubic-bezier(.175,.885,.32,1.275);
+    }
+    .cc-chip.me { background: linear-gradient(135deg, #e91e8c, #c2185b); border-color: #f48fb1; box-shadow: 0 0 12px rgba(233,30,140,.4); }
+
     /* mobile: leaderboard above grid */
     @media (max-width: 719px) {
       .lb-col   { order: -1; }
@@ -437,6 +461,18 @@
           <div class="lb-empty">Waiting for players…</div>
         </div>
       </div>
+
+      <!-- Class Clown Club -->
+      <div class="cc-club-wrap">
+        <div class="cc-club-header">
+          <span>🤡 Class Clown Club</span>
+          <span class="cc-club-sub">all 5 pink squares completed</span>
+        </div>
+        <div class="cc-club-body" id="cc-club-body">
+          <div class="cc-club-empty">No clowns yet… will you be first?</div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /main-layout -->
@@ -778,11 +814,12 @@ function startLeaderboard() {
       return;
     }
 
+    // Leaderboard rows
     body.innerHTML = '';
     players.forEach((p, i) => {
-      const rank  = i + 1;
-      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
-      const isMe  = p.name === playerName;
+      const rank   = i + 1;
+      const medal  = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
+      const isMe   = p.name === playerName;
       const badges = (p.ccUnlocked ? '🤡' : '') + (p.bonusDone ? '⚡' : '');
 
       const row = document.createElement('div');
@@ -796,6 +833,21 @@ function startLeaderboard() {
       `;
       body.appendChild(row);
     });
+
+    // Class Clown Club
+    const ccBody    = document.getElementById('cc-club-body');
+    const clowns    = players.filter(p => p.ccUnlocked);
+    ccBody.innerHTML = '';
+    if (clowns.length === 0) {
+      ccBody.innerHTML = '<div class="cc-club-empty">No clowns yet… will you be first?</div>';
+    } else {
+      clowns.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'cc-chip' + (p.name === playerName ? ' me' : '');
+        chip.textContent = '🤡 ' + p.name;
+        ccBody.appendChild(chip);
+      });
+    }
   }, err => {
     console.warn('Firebase read error:', err);
     body.innerHTML = `<div class="lb-offline"><strong>Unable to load scores</strong>Check your Firebase rules allow read access.</div>`;
