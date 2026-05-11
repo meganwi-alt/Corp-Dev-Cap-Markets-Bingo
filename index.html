@@ -323,6 +323,32 @@
     }
     .cc-chip.me { background: linear-gradient(135deg, #e91e8c, #c2185b); border-color: #f48fb1; box-shadow: 0 0 12px rgba(233,30,140,.4); }
 
+    /* ── BINGO TOAST ─────────────────────────────────────── */
+    #toast-container {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 1500; display: flex; flex-direction: column; align-items: center;
+      gap: 10px; pointer-events: none; width: 92%; max-width: 420px;
+    }
+    .bingo-toast {
+      background: linear-gradient(135deg, #006AFF, #0044bb);
+      color: #fff; padding: 14px 22px; border-radius: 18px;
+      font-size: 15px; font-weight: 700; text-align: center; width: 100%;
+      box-shadow: 0 12px 40px rgba(0,106,255,.45);
+      border: 1px solid rgba(255,255,255,.2);
+      animation: toast-in .4s cubic-bezier(.175,.885,.32,1.275) forwards;
+    }
+    .bingo-toast.out {
+      animation: toast-out .3s ease-in forwards;
+    }
+    @keyframes toast-in {
+      from { transform: translateY(-24px) scale(.85); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    @keyframes toast-out {
+      from { transform: translateY(0) scale(1); opacity: 1; }
+      to   { transform: translateY(-16px) scale(.9); opacity: 0; }
+    }
+
     /* mobile: leaderboard above grid */
     @media (max-width: 719px) {
       .lb-col   { order: -1; }
@@ -478,6 +504,9 @@
   </div><!-- /main-layout -->
 </div><!-- /game -->
 
+<!-- ── TOAST CONTAINER ──────────────────────────────── -->
+<div id="toast-container"></div>
+
 <!-- ══════════════════════════════════════════════════════
      SCRIPTS
 ══════════════════════════════════════════════════════ -->
@@ -541,6 +570,7 @@ let bingosWon  = new Set();
 let ccUnlocked = false;
 let db         = null;
 let fbReady    = false;
+let loginTs    = Date.now();
 
 // ── FIREBASE INIT ─────────────────────────────────────
 try {
@@ -593,8 +623,10 @@ function startGame() {
   if (ccUnlocked) document.getElementById('cc-badge').classList.add('show');
 
   // Sync current state to Firebase and start listening
+  loginTs = Date.now();
   syncToFirebase();
   startLeaderboard();
+  startNotificationListener();
 }
 
 // ── BUILD GRID ────────────────────────────────────────
@@ -648,6 +680,8 @@ function toggleSquare(pos) {
   syncToFirebase();
 
   if (newLines.length > 0) {
+    writeBingoNotification(playerName);
+    showBingoToast(playerName, true);
     setTimeout(() => {
       fireConfetti();
       showModal('🎊', 'BINGO!', newLines.length > 1 ? `You hit ${newLines.length} bingos!` : 'You got a BINGO! Keep going!');
@@ -781,6 +815,36 @@ function syncToFirebase() {
     bonusDone:   bonusDone,
     ts:          Date.now(),
   }).catch(e => console.warn('Firebase write error:', e));
+}
+
+// ── BINGO NOTIFICATIONS ───────────────────────────────
+function writeBingoNotification(name) {
+  if (!fbReady || !db) return;
+  db.ref('notifications').push({ name, ts: Date.now() });
+}
+
+function startNotificationListener() {
+  if (!fbReady || !db) return;
+  db.ref('notifications').orderByChild('ts').startAt(loginTs + 1).on('child_added', snap => {
+    const n = snap.val();
+    if (!n || n.name === playerName) return; // already seeing the modal
+    showBingoToast(n.name);
+  });
+}
+
+function showBingoToast(name, isMe = false) {
+  const container = document.getElementById('toast-container');
+  const toast     = document.createElement('div');
+  toast.className = 'bingo-toast';
+  toast.innerHTML = isMe
+    ? `🎊 Congratulations <strong>${name}</strong>, you just got BINGO!`
+    : `🎊 <strong>${name}</strong> just got a BINGO!`;
+  container.appendChild(toast);
+  fireConfetti();
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 320);
+  }, 4500);
 }
 
 // ── LEADERBOARD ───────────────────────────────────────
